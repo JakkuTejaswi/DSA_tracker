@@ -32,3 +32,4 @@ uvicorn
 gunicorn
 scikit-learn
 numpy
+psycopg2-binary
