@@ -12,14 +12,9 @@ services:
           name: dsa-db
           property: connectionString
       - key: SECRET_KEY
-        generateValue: true
+        value: 4f7a1b3c9e2d5f8a0b1c3d5e7f9a2b4c6d8e0f1a3b5c7d9e1f
       - key: ALGORITHM
         value: HS256
-      - key: FRONTEND_URL
-        fromService:
-          type: static
-          name: dsa-tracker-frontend
-          property: host
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -32,16 +27,12 @@ services:
   # Frontend Static Site
   - type: static
     name: dsa-tracker-frontend
-    env: static
     buildCommand: npm run build
     publishDir: build
     rootDir: frontend
     envVars:
       - key: REACT_APP_API_URL
-        fromService:
-          type: web
-          name: dsa-tracker-backend
-          property: host
+        value: https://dsa-tracker-backend.onrender.com
 
 databases:
   - name: dsa-db
