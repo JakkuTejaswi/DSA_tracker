@@ -58,12 +58,11 @@ def forgot_password(
     user = crud.get_user_by_email(db, request.email)
     if user:
         reset_token = crud.create_reset_token(db, user.id)
-        success = send_password_reset_email(request.email, reset_token)
-        if not success:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to send reset email. Please check server logs."
-            )
+        background_tasks.add_task(
+            send_password_reset_email,
+            to_email=request.email,
+            reset_token=reset_token
+        )
 
     return {
         "message": "If that email is registered, a reset link has been sent."
