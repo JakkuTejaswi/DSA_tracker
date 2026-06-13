@@ -6,26 +6,17 @@ from models import Problem
 from schemas import ProblemCreate
 from sqlalchemy import func
 from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from recommendations import TOPIC_FLOW
 import secrets
 
 
-def create_reset_token(db: Session, user_id: int) -> str:
-    """Generate a secure reset token, store it, and return the token string."""
-    # Invalidate any existing tokens for this user
-    db.query(PasswordResetToken).filter(
-        PasswordResetToken.user_id == user_id
-    ).delete()
-
+def create_reset_token(db: Session, user_id: int):
+    db.query(PasswordResetToken).filter(PasswordResetToken.user_id == user_id).delete()
+    import secrets
     token = secrets.token_urlsafe(32)
-    expires = datetime.utcnow() + timedelta(hours=1)
-
-    db_token = PasswordResetToken(
-        user_id=user_id,
-        token=token,
-        expires_at=expires,
-        used=0
-    )
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+    db_token = PasswordResetToken(user_id=user_id, token=token, expires_at=expires_at)
     db.add(db_token)
     db.commit()
     return token
