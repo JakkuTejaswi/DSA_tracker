@@ -25,8 +25,9 @@ services:
         value: axbebtkdztbyqlvk
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: dsa-tracker-frontend
+    env: static
     buildCommand: npm run build
     publishDir: build
     rootDir: frontend
