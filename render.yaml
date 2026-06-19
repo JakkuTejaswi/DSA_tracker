@@ -23,6 +23,10 @@ services:
         value: dsatracker6@gmail.com
       - key: SMTP_PASS
         value: axbebtkdztbyqlvk
+      - key: FRONTEND_URL
+        value: https://dsa-tracker-web-whvz.onrender.com
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 60
 
   # Frontend Static Site
   - type: web

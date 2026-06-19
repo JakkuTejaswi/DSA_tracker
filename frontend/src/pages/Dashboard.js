@@ -78,11 +78,6 @@ function Dashboard() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
-
   const nextPage = () => setPage(prev => prev + 1);
   const prevPage = () => setPage(prev => Math.max(0, prev - 1));
 
@@ -103,15 +98,11 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>DSA Tracker</h1>
-        <div className="header-actions">
-          <div className="readiness-chip">
-            AI Readiness Score: <strong>{readiness || 0}%</strong>
-          </div>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
+      <div className="dashboard-top-bar">
+        <div className="readiness-chip">
+          AI Readiness Score: <strong>{readiness || 0}%</strong>
         </div>
-      </header>
+      </div>
 
       <main className="dashboard-main">
         <section className="stats-section">

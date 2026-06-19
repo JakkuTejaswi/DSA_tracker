@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -48,24 +48,39 @@ def login(
 @router.post("/forgot-password")
 def forgot_password(
     request: ForgotPasswordRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
-    Send a password-reset link to the user's email.
-    Always returns 200 to avoid leaking whether an email is registered.
+    Synchronously send a password-reset link if the email is registered.
+    Returns email_found flag so frontend can inform the user accurately.
     """
-    user = crud.get_user_by_email(db, request.email)
-    if user:
-        reset_token = crud.create_reset_token(db, user.id)
-        background_tasks.add_task(
-            send_password_reset_email,
-            to_email=request.email,
-            reset_token=reset_token
+    email = request.email.strip().lower()
+    user = crud.get_user_by_email(db, email)
+
+    if not user:
+        return {
+            "message": "No account found with this email address.",
+            "email_found": False
+        }
+
+    reset_token = crud.create_reset_token(db, user.id)
+
+    # Send synchronously so we can detect and report real failures
+    sent, error = send_password_reset_email(
+        to_email=user.email,
+        reset_token=reset_token
+    )
+
+    if not sent:
+        print(f"[forgot-password] Email delivery failed for {email}: {error}")
+        raise HTTPException(
+            status_code=503,
+            detail="We could not send the reset email right now. Please try again in a few minutes."
         )
 
     return {
-        "message": "If that email is registered, a reset link has been sent."
+        "message": "A password reset link has been sent to your email.",
+        "email_found": True
     }
 
 

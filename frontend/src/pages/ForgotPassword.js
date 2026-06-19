@@ -14,10 +14,18 @@ function ForgotPassword() {
     setLoading(true);
     setError("");
     try {
-      await API.post("/users/forgot-password", { email });
-      setSent(true);
+      const response = await API.post("/users/forgot-password", { email: email.trim() });
+      // Backend now tells us if the email was actually found
+      if (response.data.email_found === false) {
+        setError("No account found with this email address. Please check your email or register a new account.");
+      } else {
+        setSent(true);
+      }
     } catch (err) {
-      setError("Something went wrong. Please try again.");
+      setError(
+        err.response?.data?.detail ||
+        "Something went wrong. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
@@ -30,8 +38,8 @@ function ForgotPassword() {
           <div className="success-icon">📧</div>
           <h2>Check Your Email</h2>
           <p className="auth-subtitle">
-            If <strong>{email}</strong> is registered, we've sent a password reset link.
-            Check your inbox (and spam folder).
+            We've sent a password reset link to <strong>{email}</strong>.
+            Check your inbox (and spam folder). The link expires in 1 hour.
           </p>
           <p className="auth-footer">
             <Link to="/">Back to Login</Link>
@@ -44,9 +52,10 @@ function ForgotPassword() {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div className="success-icon">🔐</div>
         <h2>Forgot Password</h2>
         <p className="auth-subtitle">
-          Enter your email and we'll send you a reset link.
+          Enter the email address associated with your account and we'll send you a link to reset your password.
         </p>
 
         {error && <div className="auth-error">{error}</div>}
@@ -60,9 +69,10 @@ function ForgotPassword() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              id="forgot-email-input"
             />
           </div>
-          <button type="submit" disabled={loading} className="auth-btn">
+          <button type="submit" disabled={loading} className="auth-btn" id="forgot-submit-btn">
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
         </form>

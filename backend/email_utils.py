@@ -1,5 +1,6 @@
 import os
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
@@ -14,11 +15,9 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-def send_password_reset_email(to_email: str, reset_token: str):
-    """Send a password-reset link to the given email address."""
 
-    reset_link = f"{FRONTEND_URL}/reset-password?token={reset_token}"
-
+def _build_email_message(to_email: str, reset_link: str) -> MIMEMultipart:
+    """Build the HTML email message."""
     html_body = f"""
     <!DOCTYPE html>
     <html>
@@ -41,48 +40,81 @@ def send_password_reset_email(to_email: str, reset_token: str):
         <h1>Reset Your Password</h1>
         <p>Hi there,</p>
         <p>We received a request to reset your password for your DSA Tracker account. Click the button below to choose a new one. This link will expire in 1 hour.</p>
-        
+
         <center>
           <a href="{reset_link}" class="btn">Reset Password</a>
         </center>
-        
+
         <div class="divider"></div>
-        
+
         <p class="note">If you didn't request this, you can safely ignore this email. Your password will remain unchanged.</p>
         <p class="note">If the button above doesn't work, copy and paste this link into your browser:</p>
         <p class="note" style="word-break: break-all; color: #6366f1;">{reset_link}</p>
       </div>
       <div class="footer">
-        &copy; {1} DSA Tracker. All rights reserved.
+        &copy; 2024 DSA Tracker. All rights reserved.
       </div>
     </body>
     </html>
-    """.replace("{1}", "2024") # Use static year for simplicity or pass it
+    """
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = "DSA Tracker – Reset Your Password"
     msg["From"] = f"DSA Tracker <{SMTP_USER}>"
     msg["To"] = to_email
     msg.attach(MIMEText(html_body, "html"))
+    return msg
 
-    # Fallback to console logging if credentials are missing
+
+def send_password_reset_email(to_email: str, reset_token: str) -> tuple[bool, str]:
+    """
+    Send a password-reset link to the given email address.
+    Returns (success: bool, error_message: str).
+    Tries STARTTLS on port 587 first, then SSL on port 465 as fallback.
+    """
+    reset_link = f"{FRONTEND_URL}/reset-password?token={reset_token}"
+
+    # Fallback to console logging if credentials are missing (dev mode)
     if not SMTP_USER or not SMTP_PASS:
         print("\n" + "="*60)
-        print("DEBUG: SMTP Credentials missing. Reset link would be:")
+        print("DEBUG: SMTP credentials missing. Reset link:")
         print(f"TO: {to_email}")
         print(f"LINK: {reset_link}")
         print("="*60 + "\n")
-        return True
+        return True, ""
 
+    msg = _build_email_message(to_email, reset_link)
+    last_error = ""
+
+    # --- Attempt 1: STARTTLS on port 587 ---
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        print(f"[email] Attempting STARTTLS (port 587) → {to_email}")
+        with smtplib.SMTP(SMTP_HOST, 587, timeout=15) as server:
             server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, to_email, msg.as_string())
-        return True
+        print(f"[email] ✅ Sent via STARTTLS to {to_email}")
+        return True, ""
     except Exception as e:
-        print(f"Email send error: {e}")
-        # Still log the link to console so development can continue
-        print(f"DEBUG: Failed to send email, but here is the link: {reset_link}")
-        return False
+        last_error = str(e)
+        print(f"[email] STARTTLS attempt failed: {e}")
+
+    # --- Attempt 2: SSL/TLS on port 465 ---
+    try:
+        print(f"[email] Attempting SSL (port 465) → {to_email}")
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_HOST, 465, context=context, timeout=15) as server:
+            server.ehlo()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, to_email, msg.as_string())
+        print(f"[email] ✅ Sent via SSL to {to_email}")
+        return True, ""
+    except Exception as e:
+        last_error = str(e)
+        print(f"[email] SSL attempt failed: {e}")
+
+    print(f"[email] ❌ All attempts failed. Last error: {last_error}")
+    print(f"[email] DEBUG reset link: {reset_link}")
+    return False, last_error
